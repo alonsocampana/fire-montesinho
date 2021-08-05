@@ -11,10 +11,8 @@ def spatial_counts(df):
     x_min = df["X"].min()
     counts = np.zeros([y_max-y_min+1, x_max-x_min+1])
     for i in np.arange(0, len(df)):
-        x_start = df["X"].min()
-        y_start = df["Y"].min()
-        x = (df["X"][i]-x_start)
-        y = (df["Y"][i]-y_start)
+        x = (df["X"].iloc[i]-x_min)
+        y = (df["Y"].iloc[i]-y_min)
         counts[y][x] += 1
     return counts
 
@@ -28,9 +26,9 @@ def average_area(df):
     for i in np.arange(0, len(df)):
         x_start = df["X"].min()
         y_start = df["Y"].min()
-        x = (df["X"][i]-x_start)
-        y = (df["Y"][i]-y_start)
-        cumsums[y][x] += df["area"][i]
+        x = (df["X"].iloc[i]-x_start)
+        y = (df["Y"].iloc[i]-y_start)
+        cumsums[y][x] += df["area"].iloc[i]
         
     return np.divide(cumsums, xy_counts, out=np.zeros_like(cumsums), where=xy_counts!=0)
 
@@ -47,16 +45,16 @@ def plot_xy_counts(fires, ax):
     g.axes.set_title("Number of fires per coordinates",fontsize=20)
     return g
 
-def plot_xy_averages(fires, ax):
+def plot_xy_averages(fires, ax, title = "Average area burnt in each fire", vmax=30):
     average_areas = average_area(fires)
-    g = sns.heatmap(average_areas[::-1], vmax=30, cmap = "OrRd", cbar=False,annot=True, ax=ax)
+    g = sns.heatmap(average_areas[::-1], vmax=vmax, cmap = "OrRd", cbar=False,annot=True, ax=ax)
     yticks = np.arange(fires["Y"].min(), fires["Y"].max()+1)
     xticks = np.arange(fires["X"].min(), fires["X"].max()+1)
     g.set(yticklabels=yticks[::-1])
     g.set(xticklabels=xticks)
     g.axes.set_xlabel("X", fontsize=20)
     g.axes.set_ylabel("Y", fontsize=20)
-    g.axes.set_title("Average area burnt in each fire",fontsize=20)
+    g.axes.set_title(title,fontsize=20)
     return g
 
 def plot_month_counts(fires, ax):
