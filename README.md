@@ -3,6 +3,7 @@ Modeling Forest Fires in Montesinho Natural Park
 
 Project for the subject Intelligent Data Analysis and Machine Learning I, from Potsdam University.
 
+Author: Pedro Alonso Campana
 ## Project structure:
 
 - exploratory_analysis_preprocessing.ipynb: Contains the detailed data visualization related to data exploration and preprocessing
