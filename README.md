@@ -6,6 +6,8 @@ Project for the subject Intelligent Data Analysis and Machine Learning I, from P
 Author: Pedro Alonso Campana
 ## Project structure:
 
+### Notebooks
+
 - exploratory_analysis_preprocessing.ipynb: Contains the detailed data visualization related to data exploration and preprocessing
 
 ### imports
