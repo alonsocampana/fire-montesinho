@@ -135,7 +135,7 @@ class DataPreprocessorPCA(DataPreprocessor):
         Interface for preprocessing Montesinho data. Includes additional PCA transformation of the numeric continuous variables
     """
     def __init__(self):
-        pass
+        self.transformable_cols = ['FFMC', 'DMC', 'DC', 'ISI', 'temp', 'RH','wind']
     
     def transform_with_2target(self):
         month_df = self.month_encoding()
@@ -144,6 +144,21 @@ class DataPreprocessorPCA(DataPreprocessor):
         rain_series = self.rain_transform()
         dc_df = self.DC_encoding()
         target_df = self.area_split_transform()
+        numerical_df = pd.DataFrame(self.processor.transform(self.data[self.transformable_cols]), columns = self.transformable_cols)
+        self.pca_processor = PCA()
+        self.pca_processor.fit(numerical_df)
+        pca_mat = self.pca_processor.transform(numerical_df)
+        numerical_df = pd.DataFrame(pca_mat, columns = ['pc'+str(i) for i in np.arange(1, 8)])        
+        output = pd.concat([month_df, xy_df, day_df, rain_series, dc_df, numerical_df, target_df], axis=1)
+        return output
+    def transform_with_1target(self):
+        month_df = self.month_encoding()
+        xy_df = self.xy_encoding()
+        day_df = self.day_encoding()
+        rain_series = self.rain_transform()
+        dc_df = self.DC_encoding()
+        target_df = self.area_split_transform()
+        target_df = target_df[["area"]]
         numerical_df = pd.DataFrame(self.processor.transform(self.data[self.transformable_cols]), columns = self.transformable_cols)
         self.pca_processor = PCA()
         self.pca_processor.fit(numerical_df)
@@ -256,7 +271,7 @@ class DataPreprocessorSplitter(DataPreprocessor):
         return month_df
     
 
-class DataPreprocessorSplitter2(DataPreprocessor):
+class DataPreprocessorSplitter2(DataPreprocessorSplitter):
     """
         Interface for preprocessing Montesinho data. Includes additional PCA transformation of the numeric continuous variables and splits the dataset in function of the months, and the resulting dataset for june-december in function of the X coordinate
     """
@@ -296,8 +311,8 @@ class DataPreprocessorSplitter2(DataPreprocessor):
         # Creates the corresponding three dataframes that are going to be the output
         common_df = pd.concat([xy_df, day_df, rain_series, dc_df, target_df], axis=1)
         output1 = pd.concat([common_df.loc[self.filter15].reset_index(), month_df15.reset_index(), numerical_df15.reset_index()], axis=1)
-        output2 = pd.concat([common_df.loc[self.filterx15].reset_index(), month_df612.loc[self.filterx15_split].reset_index(), numerical_df612_15.reset_index()], axis=1)
-        output3 = pd.concat([common_df.loc[self.filterx69].reset_index(), month_df612.loc[self.filterx69_split].reset_index(), numerical_df612_69.reset_index()], axis=1)
+        output2 = pd.concat([common_df.loc[self.filterx15 & self.filter612].reset_index(), month_df612.loc[self.filterx15_split].reset_index(), numerical_df612_15.reset_index()], axis=1)
+        output3 = pd.concat([common_df.loc[self.filterx69 & self.filter612].reset_index(), month_df612.loc[self.filterx69_split].reset_index(), numerical_df612_69.reset_index()], axis=1)
         return output1, output2, output3
     def split(self):
         months1 = ['jan', 'feb', 'mar', 'apr','may']
@@ -320,5 +335,5 @@ class DataPreprocessorSplitter2(DataPreprocessor):
         self.remove_outlier()
         self.split()
         self.processor_15 = MinMaxScaler().fit(self.data_jan_may.loc[:,self.transformable_cols])
-        self.processor_612_15 = MinMaxScaler().fit(self.self.data_jun_dec_15.loc[:,self.transformable_cols])
+        self.processor_612_15 = MinMaxScaler().fit(self.data_jun_dec_15.loc[:,self.transformable_cols])
         self.processor_612_69 = MinMaxScaler().fit(self.data_jun_dec_69.loc[:,self.transformable_cols])

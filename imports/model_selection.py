@@ -11,6 +11,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import PolynomialFeatures
@@ -33,6 +34,9 @@ def average_squared_loss_from_log(y_pred, y_test):
 
 def average_squared_loss(y_pred, y_test):
     return (sum(((y_pred) - (y_test))**2))/len(y_pred)
+
+def average_absolute_loss(y_pred, y_test):
+    return sum(abs(((y_pred) - (y_test))))/len(y_pred)
 
 def loss_for_n_estimators(n_estimators, X_train, X_test, y_train, y_test):
     """
@@ -429,7 +433,7 @@ def hyper_opt_gbr(X, y):
         Iterates over a set of hyperparameters and returns the combination resulting in the lowest loss
     """
     degrees, learning_rates, n_estimatorss = [1, 2, 3], np.linspace(0.05, 0.6, 5), [20, 50, 100]
-    min_loss = 10000
+    min_loss = 100000
     for deg in degrees:
         for lr in learning_rates:
             for n_estimator in n_estimatorss:
@@ -440,3 +444,77 @@ def hyper_opt_gbr(X, y):
                     min_lr = lr
                     min_n_estimator = n_estimator
     return {"loss":min_loss, "deg": min_deg, "lr":min_lr, "n_estimators":min_n_estimator}
+
+def hyper_opt_gbr_2(X, y):
+    """
+        Iterates over a set of hyperparameters and returns the combination resulting in the lowest loss
+    """
+    degrees, learning_rates, n_estimatorss = [1, 2, 3], np.linspace(0.05, 0.6, 5), [20, 50, 100]
+    min_loss = 100000
+    for deg in degrees:
+        for lr in learning_rates:
+            for n_estimator in n_estimatorss:
+                temp_loss = gbr_score_2(X, y, deg, lr, n_estimator)
+                if temp_loss < min_loss:
+                    min_loss = temp_loss
+                    min_deg = deg
+                    min_lr = lr
+                    min_n_estimator = n_estimator
+    return {"loss":min_loss, "deg": min_deg, "lr":min_lr, "n_estimators":min_n_estimator}
+
+def gbr_score_2(X, y, degree, learning_rate, n_estimators):
+    """
+        For a given data and combination of parameters, results the squared loss resulting from k-fold cross validation
+    """
+    poly = PolynomialFeatures(degree=degree)
+    poly.fit(X)
+    X_temp = poly.transform(X)
+    rskf = KFold(n_splits=5, shuffle=True,random_state=3558)
+    losses = []
+    n=0
+    for train_index, test_index in rskf.split(X, y):
+        n += 1
+        X_train, X_test = X_temp[train_index], X_temp[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+        model = GradientBoostingRegressor(learning_rate = learning_rate, n_estimators = n_estimators)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        losses.append(average_absolute_loss(y_pred, y_test))
+    return sum(losses)/n
+
+def hyper_opt_rfr(X, y):
+    """
+        Iterates over a set of hyperparameters and returns the combination resulting in the lowest loss
+    """
+    degrees, criterion, n_estimatorss = [1, 2, 3], ['mse', 'mae'], [20, 50, 100]
+    min_loss = 100000
+    for deg in degrees:
+        for cr in criterion:
+            for n_estimator in n_estimatorss:
+                temp_loss = gbr_score(X, y, deg, lr, n_estimator)
+                if temp_loss < min_loss:
+                    min_loss = temp_loss
+                    min_deg = deg
+                    min_lr = lr
+                    min_n_estimator = n_estimator
+    return {"loss":min_loss, "deg": min_deg, "lr":min_lr, "n_estimators":min_n_estimator}
+
+def rfr_score(X, y, degree, learning_rate, n_estimators):
+    """
+        For a given data and combination of parameters, results the squared loss resulting from k-fold cross validation
+    """
+    poly = PolynomialFeatures(degree=degree)
+    poly.fit(X)
+    X_temp = poly.transform(X)
+    rskf = KFold(n_splits=5, shuffle=True,random_state=3558)
+    losses = []
+    n=0
+    for train_index, test_index in rskf.split(X, y):
+        n += 1
+        X_train, X_test = X_temp[train_index], X_temp[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+        model = RandomForestRegressor(learning_rate = learning_rate, n_estimators = n_estimators)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        losses.append(average_absolute_loss(y_pred, y_test))
+    return sum(losses)/n
