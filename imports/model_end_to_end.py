@@ -4,6 +4,9 @@ from model_selection import *
 import pickle
 
 class MontesinhoCompleteModel_evaluator():
+    """
+        Highly complex model doing previous classification
+    """
     def __init__(self, classifier_jan, classifier_jun_15, classifier_jun_69,
                  featurizer_jan, featurizer_jun15, featurizer_jun69, regressor_jan,
                  regressor_jun_15, regressor_jun_69):
@@ -111,6 +114,9 @@ class MontesinhoCompleteModel_evaluator():
             losses.append(temp_losses/X_test.shape[0])
         return (sum(losses)/n)
     
+    def get_model(self):
+        return self.model
+    
     def average_loss(self):
         loss1 = self.eval_data1()
         loss2 = self.eval_data2()
@@ -118,8 +124,15 @@ class MontesinhoCompleteModel_evaluator():
         total = self.l1 + self.l2 + self.l3
         return (self.l1 * loss1 + self.l2 * loss2 + self.l3 * loss3)/total
     
-class MontesinhoCompleteModel_evaluator_simple_gbr():
+class MontesinhoCompleteModel_evaluator_simple():
+    """
+        End to end simplified model
+    """
     def __init__(self, model, degree):
+        """
+        [model: A valid sklearn model]
+        [degree: the degree of the polynomial featurizer for the model]
+        """
         self.preprocessor = DataPreprocessorPCA()
         self.poly = PolynomialFeatures(degree=degree)
         self.model = model
@@ -129,6 +142,25 @@ class MontesinhoCompleteModel_evaluator_simple_gbr():
         self.data = self.preprocessor.transform_with_1target()
         self.poly.fit(self.data.drop(["area"], axis=1))
         self.data_poly = self.poly.transform(self.data.drop(["area"], axis=1))
+        
+    def train(self):
+        """
+            trains the model on the whole data
+        """
+        X = self.data_poly
+        self.columns = self.data.drop(["area"], axis=1).columns
+        y= self.data["area"]
+        self.model.fit(X, y)
+        
+    def predict_instance(self, instance): 
+        """
+            Predicts the value for a single instance, a dataframe containing the same columns as the original csv file
+        """
+        transformed_instance = self.preprocessor.transform_single_instance(instance)[self.columns]
+        poly_instance = self.poly.transform(transformed_instance.to_numpy().reshape(1, -1))
+        prediction = self.model.predict(poly_instance)
+        return np.exp(prediction[0]) + 1
+    
     def evaluate(self):
         X = self.data_poly
         y= self.data["area"]
@@ -143,3 +175,77 @@ class MontesinhoCompleteModel_evaluator_simple_gbr():
             y_pred = self.model.predict(X_test)
             losses.append(average_absolute_loss(y_pred, y_test))
         return sum(losses)/n
+    
+    def get_model(self):
+        return self.model
+    
+    def save_model(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
+
+    def load_model(self, filename):
+        with open(filename, 'rb') as f:
+            self = pickle.load(f)
+        
+
+class MontesinhoCompleteModel_evaluator_fe(MontesinhoCompleteModel_evaluator_simple):
+    """
+        End to end model with feature engineering.
+    """
+    def __init__(self, model, degree, feature_added, feature_removed):
+        """
+        [model: A valid sklearn model]
+        [degree: the degree of the polynomial featurizer for the model]
+        [feature_added: An array containing pairs of variables to be added to the model as new features]
+        [feature_removed: A list containing features to be removed from the model]
+        """
+        self.feature_added = feature_added
+        self.feature_removed = feature_removed
+        self.preprocessor = DataPreprocessorPCA()
+        self.poly = PolynomialFeatures(degree=degree)
+        self.model = model
+
+    def fit(self, data):
+        """
+            Performs the initial fit of the preprocessors.
+        """
+        self.preprocessor.fit(data)
+        self.data = self.preprocessor.transform_with_1target()
+        for feature in self.feature_added:
+            self.data = add_feature(self.data, feature[0], feature[1])
+        self.data = self.data.drop(self.feature_removed, axis=1)
+        self.poly.fit(self.data.drop(["area"], axis=1))
+        self.data_poly = self.poly.transform(self.data.drop(["area"], axis=1))
+        
+    def predict_instance(self, instance):
+        """
+            Predicts the value for a single instance, a dataframe containing the same columns as the original csv file
+        """
+        transformed_instance = self.preprocessor.transform_single_instance(instance)
+        for feature in self.feature_added:
+            transformed_instance = add_feature_series(transformed_instance, feature[0], feature[1])
+        transformed_instance = transformed_instance.drop(self.feature_removed)[self.columns]
+        poly_instance = self.poly.transform(transformed_instance.to_numpy().reshape(1, -1))
+        prediction = self.model.predict(poly_instance)
+        return np.exp(prediction[0])
+
+def add_feature_series(series, col1, col2):
+    """
+        creates a new feature for the series resulting from the multiplication of col1 and col2
+    """
+    series = series.copy()
+    new_name = col1 + " * " + col2
+    val = series[col1] * series[col2]
+    dict_out = {}
+    dict_out[new_name] = val
+
+def add_feature_series(series, col1, col2):
+    """
+        creates a new feature for the series resulting from the multiplication of col1 and col2
+    """
+    series = series.copy()
+    new_name = col1 + " * " + col2
+    val = series[col1] * series[col2]
+    dict_out = {}
+    dict_out[new_name] = val
+    return (series.append(pd.Series(dict_out)))

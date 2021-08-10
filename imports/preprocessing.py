@@ -50,10 +50,11 @@ class DataPreprocessor:
         """
         month_encoder = OneHotEncoder(handle_unknown='ignore')
         month_encoder.fit(self.data[["month"]])
-        months = ['jan', 'feb', 'mar', 'apr','may','jun', 'jul', 'aug','sep', 'oct', 'nov', 'dec']
+        months_temp = ['jan', 'feb', 'mar', 'apr','may','jun', 'jul', 'aug','sep', 'oct', 'nov', 'dec']
+        months = [month for month in months_temp if month in (self.data["month"].to_numpy())]
         months_sorted = sorted(months)
         months_array = month_encoder.transform(self.data[["month"]]).toarray()
-        months_bool = [month+"_bool"for month in months_sorted]
+        months_bool = [month+"_bool" for month in months_sorted]
         month_df = pd.DataFrame(months_array, columns = months_bool)
         return month_df
     
@@ -166,6 +167,32 @@ class DataPreprocessorPCA(DataPreprocessor):
         numerical_df = pd.DataFrame(pca_mat, columns = ['pc'+str(i) for i in np.arange(1, 8)])        
         output = pd.concat([month_df, xy_df, day_df, rain_series, dc_df, numerical_df, target_df], axis=1)
         return output
+    def transform_single_instance(self, instance):
+        numeric_series = pd.Series(self.processor.transform(instance[self.transformable_cols].to_numpy().reshape(1, -1))[0], index = self.transformable_cols)
+        month_bools = ['apr_bool', 'aug_bool', 'dec_bool', 'feb_bool', 'jan_bool', 'jul_bool',
+       'jun_bool', 'mar_bool', 'may_bool', 'nov_bool', 'oct_bool', 'sep_bool']
+        XY_bools = ['12', '13', '14', '15', '22', '23', '24', '25', '33', '34', '35', '36',
+       '43', '44', '45', '46', '54', '55', '56', '63', '64', '65', '66', '73',
+       '74', '75', '76', '83', '84', '85', '86', '88', '94', '95', '96', '99']
+        month_key = instance["month"] + "_bool"
+        week_bools = ['fri', 'mon', 'sat', 'sun', 'thu', 'tue', 'wed']
+        month_key = instance["month"] + "_bool"
+        XY_series = pd.Series(np.zeros(len(XY_bools)), index = XY_bools)
+        month_series = pd.Series(np.zeros(len(month_bools)), index = month_bools)
+        month_series[month_key] = 1
+        XY_key = str(instance["X"]) + str(instance["Y"])
+        XY_series[XY_key] = 1
+        week_series = pd.Series(np.zeros(7), index = week_bools)
+        week_key = instance["day"]
+        week_series[week_key] = 1
+        rain_bool = (instance["rain"] != 0)
+        DC_range = bins(instance["DC"])
+        DC_rain_series = pd.Series({"DC_range" : bins(instance["DC"]), "rain":(int(instance["rain"] != 0))})
+        encoded_series = pd.concat([XY_series, month_series, week_series, DC_rain_series])
+        pca_mat = self.pca_processor.transform(numeric_series.to_numpy().reshape(1, -1))
+        numerical_series = pd.Series(pca_mat[0], index = ['pc'+str(i) for i in np.arange(1, 8)])        
+        output = XY_series.append([month_series, week_series, DC_rain_series, numerical_series])
+        return  output
     
 
 class DataPreprocessorPCA_encoding2(DataPreprocessor):

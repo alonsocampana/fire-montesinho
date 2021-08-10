@@ -25,6 +25,11 @@ from skopt.utils import use_named_args
 from skopt import gp_minimize
 from skopt import forest_minimize
 
+def add_feature(df, col1, col2):
+    df = df.copy()
+    new_name = col1 + " * " + col2
+    map_names = {"col_name":new_name}
+    return (df.assign(col_name = df.loc[:,col1] * df.loc[:,col2])).rename(map_names, axis=1)
 
 def average_squared_loss_from_log(y_pred, y_test):
     """
@@ -486,20 +491,20 @@ def hyper_opt_rfr(X, y):
     """
         Iterates over a set of hyperparameters and returns the combination resulting in the lowest loss
     """
-    degrees, criterion, n_estimatorss = [1, 2, 3], ['mse', 'mae'], [20, 50, 100]
+    degrees, criterion, n_estimatorss = [1, 2], ['mse', 'mae'], [20, 50, 100]
     min_loss = 100000
     for deg in degrees:
         for cr in criterion:
             for n_estimator in n_estimatorss:
-                temp_loss = gbr_score(X, y, deg, lr, n_estimator)
+                temp_loss = rfr_score(X, y, deg, cr, n_estimator)
                 if temp_loss < min_loss:
                     min_loss = temp_loss
                     min_deg = deg
-                    min_lr = lr
+                    min_cr = cr
                     min_n_estimator = n_estimator
-    return {"loss":min_loss, "deg": min_deg, "lr":min_lr, "n_estimators":min_n_estimator}
+    return {"loss":min_loss, "deg": min_deg, "lr":min_cr, "n_estimators":min_n_estimator}
 
-def rfr_score(X, y, degree, learning_rate, n_estimators):
+def rfr_score(X, y, degree, crit, n_estimators):
     """
         For a given data and combination of parameters, results the squared loss resulting from k-fold cross validation
     """
@@ -513,8 +518,77 @@ def rfr_score(X, y, degree, learning_rate, n_estimators):
         n += 1
         X_train, X_test = X_temp[train_index], X_temp[test_index]
         y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-        model = RandomForestRegressor(learning_rate = learning_rate, n_estimators = n_estimators)
+        model = RandomForestRegressor(criterion=crit, n_estimators = n_estimators)
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
         losses.append(average_absolute_loss(y_pred, y_test))
     return sum(losses)/n
+
+def greedy_addition(X, y, features, lr = 0.05, n_estimators = 100):
+    """
+        Given a list of features sorted by decreasing promisingness, they are added and the average loss of the model is computed.
+        [X: the data]
+        [y: The target variable]
+        [features: A list containing pairs of features. A new feature is added as the result of multiplying both]
+        [lr: The learning rate for the model]
+        [n_estimators: the number of estimators for the gradient boosting regressor model]
+    """
+    new_features = 0
+    model = GradientBoostingRegressor(learning_rate = lr, n_estimators = n_estimators)
+    rskf = KFold(n_splits=5, shuffle=True,random_state=3557)
+    n = 0
+    losses = {}
+    total_loss = 0
+    # Loss without adding features
+    for train_index, test_index in rskf.split(X, y):
+        n+=1
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        total_loss += average_absolute_loss(y_pred, y_test)
+    losses[new_features] = total_loss/n
+    X_new = X.copy()
+    for feature in features:
+        new_features += 1
+        total_loss = 0
+        n = 0
+        X_new = add_feature(X_new, feature[0], feature[1])
+        for train_index, test_index in rskf.split(X, y):
+            n+=1
+            X_train, X_test = X_new.iloc[train_index], X_new.iloc[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            total_loss += average_absolute_loss(y_pred, y_test)
+        losses[new_features] = total_loss/n
+    return losses
+
+def greedy_feature_removal_kfold(X, y, lr = 0.05, n_estimators = 100):
+    """
+        Removes features greedily and returns the average loss using k-fold cross validation for each removal.
+    """
+    average_losses = {}
+    features = list(X.columns[:])
+    removed_features = []
+    rskf = KFold(n_splits=5, shuffle=True,random_state=355)
+    for i in np.arange(0, X.shape[1] - 1):
+        total_loss = 0
+        gbr = GradientBoostingRegressor(learning_rate = lr, n_estimators = n_estimators)
+        gbr.fit(X.loc[:,features], y)
+        importances = gbr.feature_importances_
+        imp_series = pd.Series(data=importances, index=X.loc[:,features].columns)
+        imp_series.sort_values(ascending=True, inplace=True)
+        removed_features.append(imp_series.index[0])
+        features.remove(imp_series.index[0])
+        n = 0
+        for train_index, test_index in rskf.split(X, y):
+            n+=1
+            X_train, X_test = X.loc[:,features].iloc[train_index], X.loc[:,features].iloc[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            total_loss += average_absolute_loss(y_pred, y_test)
+        average_losses[i] = total_loss/n
+            
+    return removed_features, average_losses
