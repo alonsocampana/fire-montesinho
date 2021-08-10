@@ -21,6 +21,9 @@ Author: Pedro Alonso Campana
 - model_end_to_end.py: Contains the classes for the end-to-end implementation of the model
 - whole_model.py: Contains the comparison of the different model performances
 
-### GUI
-
 ### API
+
+- app.py: Contains a small API deployment of the model, can be run from the terminal with "python3 app.py"
+- request.py: A small trial request that can be run from the terminal with "python3 request.py"
+
+### GUI
