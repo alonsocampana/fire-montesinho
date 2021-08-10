@@ -12,6 +12,7 @@ Author: Pedro Alonso Campana
 - model_selection.ipynb: Contains initial model comparaisons searching for a modeling approach.
 - Hyperparameter_tuning_classificators_accuracy.ipynb: Contains driver code for classification models and regression models for the first halfth
 - modeling_second_halfth.ipynb: Contains driver code for creating the models for the subset of data from june to december
+- whole_model.py: Contains the comparison of the different models
 
 ### imports
 
@@ -19,7 +20,6 @@ Author: Pedro Alonso Campana
 - preprocessing.py: Contains the code used for processing the data, normalization of variables, transformations...
 - model_selection.py: Contains the code used for comparing different candidate models, hyperparameter tuning...
 - model_end_to_end.py: Contains the classes for the end-to-end implementation of the model
-- whole_model.py: Contains the comparison of the different model performances
 
 ### API
 
