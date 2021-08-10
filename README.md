@@ -24,4 +24,4 @@ Author: Pedro Alonso Campana
 ### API
 
 - app.py: Contains a small API deployment of the model, can be run from the terminal with "python3 app.py"
-- request.py: A small trial request that can be run from the terminal with "python3 request.py"
+- request.py: A small example request that can be run from the terminal with "python3 request.py"
