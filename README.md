@@ -9,7 +9,7 @@ Author: Pedro Alonso Campana
 ### Notebooks
 
 - exploratory_analysis_preprocessing.ipynb: Contains the detailed data visualization related to data exploration and preprocessing
-- modelling_and_evaluation_jan_may.ipynb: Contains initial model comparaisons searching for a modeling approach.
+- model_lselection.ipynb: Contains initial model comparaisons searching for a modeling approach.
 - Hyperparameter_tuning_classificators_accuracy.ipynb: Contains driver code for classification models and regression models for the first halfth
 - modeling_second_halfth.ipynb: Contains driver code for creating the models for the subset of data from june to december
 
