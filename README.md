@@ -8,12 +8,16 @@ Author: Pedro Alonso Campana
 
 ### Notebooks
 
+main notebooks:
+
 - exploratory_analysis_preprocessing.ipynb: Contains the detailed data visualization related to data exploration and preprocessing
 - model_selection.ipynb: Contains initial model comparaisons searching for a modeling approach.
-- Hyperparameter_tuning_classificators_accuracy.ipynb: Contains driver code for classification models and regression models for the first halfth
-- modeling_second_halfth.ipynb: Contains driver code for creating the models for the subset of data from june to december
 - whole_model.py: Contains the comparison of the different models
 
+other notebooks:
+- Hyperparameter_tuning_classificators_accuracy.ipynb: Contains driver code for classification models and regression models for the first halfth
+- modeling_second_halfth.ipynb: Contains driver code for creating the models for the subset of data from june to december
+- Custom_SVM_Cutoff_squared_hinge.ipynb: Contains a customized version of the support vector machine. Wasn't able to tune it due to slow optimization.
 ### imports
 
 - exploratory_analysis.py: Contains the code used for exploratory_analysis, mostly plots.
