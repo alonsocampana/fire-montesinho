@@ -7,6 +7,9 @@ Author: Pedro Alonso Campana
 ## Project structure:
 
 ### Notebooks
+Presentation notebook:
+
+- Fire_montesinho.ipynb: Contains all the parts put together.
 
 main notebooks:
 
@@ -15,6 +18,7 @@ main notebooks:
 - whole_model.py: Contains the comparison of the different models
 
 other notebooks:
+
 - Hyperparameter_tuning_classificators_accuracy.ipynb: Contains driver code for classification models and regression models for the first halfth
 - modeling_second_halfth.ipynb: Contains driver code for creating the models for the subset of data from june to december
 - Custom_SVM_Cutoff_squared_hinge.ipynb: Contains a customized version of the support vector machine. Wasn't able to tune it due to slow optimization.
