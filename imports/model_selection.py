@@ -14,6 +14,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
@@ -23,6 +25,7 @@ from skopt.space import Real
 from skopt.space import Categorical
 from skopt.utils import use_named_args
 from skopt import gp_minimize
+from skopt import gbrt_minimize
 from skopt import forest_minimize
 
 def add_feature(df, col1, col2):
@@ -41,7 +44,7 @@ def average_squared_loss(y_pred, y_test):
     return (sum(((y_pred) - (y_test))**2))/len(y_pred)
 
 def average_absolute_loss(y_pred, y_test):
-    return sum(abs(((y_pred) - (y_test))))/len(y_pred)
+    return sum(abs(y_pred - y_test))/len(y_pred)
 
 def loss_for_n_estimators(n_estimators, X_train, X_test, y_train, y_test):
     """
@@ -592,3 +595,77 @@ def greedy_feature_removal_kfold(X, y, lr = 0.05, n_estimators = 100):
         average_losses[i] = total_loss/n
             
     return removed_features, average_losses
+
+from sklearn.model_selection import KFold
+from sklearn.metrics import mean_absolute_error
+from skopt import gbrt_minimize
+from skopt.space import Real, Integer
+
+def nested_crossval_model(X, y, model, search_space, n_splits=5, seed=3558):
+    """Performs nested cross validation in order to estimate the loss of the model with optimal parameters
+    [X]: training data
+    [y]: training target variable
+    [model]: A model in sklearn interface
+    [search_space] : A dictionary containing the names of the parameters used by the model and their values 
+
+    EXAMPLE:
+    space  = [Integer(1, 5, name='max_depth'),
+          Real(10**-5, 10**0, "log-uniform", name='learning_rate'),
+          Integer(1, processed_fires_pca.drop(["area_bool", "area"], axis=1).shape[1], name='max_features'),
+          Integer(2, 100, name='min_samples_split'),
+          Integer(1, 100, name='min_samples_leaf')]
+
+    from sklearn.ensemble import GradientBoostingRegressor
+    nested_crossval_model(processed_fires_pca.drop(["area_bool", "area"], axis=1), processed_fires_pca["area"], GradientBoostingRegressor(),space)
+
+    """
+    outer = KFold(n_splits=n_splits, random_state=seed, shuffle=True)
+    inner = KFold(n_splits=n_splits-1, random_state=seed, shuffle=True)
+    outer_evaluations = {}
+    i = 0
+    for train_index, eval_index in outer.split(X):
+        inner_evaluations = {}
+        i+=1
+        X_outer, X_eval = X[train_index,:], X[eval_index,:]
+        y_outer, y_eval = y.iloc[train_index], y.iloc[eval_index]
+        j = 0
+        for train_index, test_index in inner.split(X_outer):
+            j+=1
+            X_train, X_test = X[train_index,:], X[test_index,:]
+            y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+            @use_named_args(search_space)
+            def evaluate_model(**params):
+                model.set_params(**params)
+                model.fit(X_train, y_train)
+                y_pred = model.predict(X_test)
+                return mean_squared_error(y_pred, y_test)
+            res_gp = gbrt_minimize(evaluate_model, search_space, n_calls=50, random_state=0)
+            inner_evaluations[j] = {}
+            inner_evaluations[j]["obj"] = res_gp.fun
+            inner_evaluations[j]["params"] = {search_space[n].name: res_gp.x[n] for n in range (len(res_gp.x))}
+        min_cost = np.Inf
+        min_ix = 0
+        for key in inner_evaluations.keys():
+            if inner_evaluations[key]["obj"] < min_cost:
+                min_cost = inner_evaluations[key]["obj"]
+                min_ix = key
+        model.set_params(**inner_evaluations[min_ix]["params"])
+        model.fit(X_outer, y_outer)
+        y_pred = model.predict(X_eval)
+        error = mean_absolute_error(y_pred, y_eval)
+        outer_evaluations[i] = {}
+        outer_evaluations[i]["obj"] = error
+        outer_evaluations[i]["params"] = inner_evaluations[min_ix]["params"]
+    min_cost = np.Inf
+    min_ix = 0
+    n_outer = 0
+    cum_cost = 0
+    for key in outer_evaluations.keys():
+        n_outer += 1
+        cum_cost += outer_evaluations[key]["obj"]
+        if outer_evaluations[key]["obj"] < min_cost:
+            min_cost = outer_evaluations[key]["obj"]
+            min_ix = key
+    model.set_params(**outer_evaluations[min_ix]["params"])
+    model.fit(X, y)
+    return cum_cost/n_outer, model
