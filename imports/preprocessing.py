@@ -200,7 +200,7 @@ class DataPreprocessorPCA_encoding2(DataPreprocessor):
         Interface for preprocessing Montesinho data. Includes additional PCA transformation of the numeric continuous variables and a different encoding of the variables
     """
     def __init__(self):
-        pass
+        self.transformable_cols = ['FFMC', 'DMC', 'DC', 'ISI', 'temp', 'RH','wind']
 
     def transform_with_2target(self):
         month_df = self.month_encoding()

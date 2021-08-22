@@ -47,11 +47,11 @@ class MontesinhoCompleteModel_evaluator():
             self.regressor_jan.fit(Xt_train[filter_nonzero], y1_train[filter_nonzero])
             y2_pred = self.classifier_jan.predict(X_test)
             false_negatives = ((y2_pred == 0) & (y2_test ==1))
-            temp_losses += np.sum(y1_test[false_negatives])
+            temp_losses += np.sum(np.exp(y1_test[false_negatives]) - 1)
             positives = (y2_pred == 1)
             if sum(positives) > 0:
                 y1_pred = self.regressor_jan.predict(Xt_test[positives])
-                temp_losses += np.sum(abs(y1_pred - y1_test[positives]))
+                temp_losses += np.sum(abs(np.exp(y1_pred) - np.exp(y1_test[positives])))
             n += 1
             losses.append(temp_losses/X_test.shape[0])
         return (sum(losses)/n)
@@ -76,11 +76,11 @@ class MontesinhoCompleteModel_evaluator():
             self.regressor_jun_15.fit(Xt_train[filter_nonzero], y1_train[filter_nonzero])
             y2_pred = self.classifier_jun_15.predict(X_test)
             false_negatives = ((y2_pred == 0) & (y2_test ==1))
-            temp_losses += np.sum(y1_test[false_negatives])
+            temp_losses += np.sum(np.exp(y1_test[false_negatives]) - 1)
             positives = (y2_pred == 1)
             if sum(positives) > 0:
                 y1_pred = self.regressor_jun_15.predict(Xt_test[positives])
-                temp_losses += np.sum(abs(y1_pred - y1_test[positives]))
+                temp_losses += np.sum(abs(np.exp(y1_pred) - np.exp(y1_test[positives])))
             n += 1
             losses.append(temp_losses/X_test.shape[0])
         return (sum(losses)/n)
@@ -105,11 +105,11 @@ class MontesinhoCompleteModel_evaluator():
             self.regressor_jun_69.fit(Xt_train[filter_nonzero], y1_train[filter_nonzero])
             y2_pred = self.classifier_jun_69.predict(X_test)
             false_negatives = ((y2_pred == 0) & (y2_test ==1))
-            temp_losses += np.sum(y1_test[false_negatives])
+            temp_losses += np.sum(np.exp(y1_test[false_negatives]) - 1)
             positives = (y2_pred == 1)
             if sum(positives) > 0:
                 y1_pred = self.regressor_jun_69.predict(Xt_test[positives])
-                temp_losses += np.sum(abs(y1_pred - y1_test[positives]))
+                temp_losses += np.sum(abs(np.exp(y1_pred) - np.exp(y1_test[positives])))
             n += 1
             losses.append(temp_losses/X_test.shape[0])
         return (sum(losses)/n)
@@ -173,7 +173,7 @@ class MontesinhoCompleteModel_evaluator_simple():
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
             self.model.fit(X_train, y_train)
             y_pred = self.model.predict(X_test)
-            losses.append(average_absolute_loss(y_pred, y_test))
+            losses.append(average_absolute_loss_from_log(y_pred, y_test))
         return sum(losses)/n
     
     def get_model(self):

@@ -40,6 +40,12 @@ def average_squared_loss_from_log(y_pred, y_test):
     """
     return (sum((np.exp(y_pred) - np.exp(y_test))**2))/len(y_pred)
 
+def average_absolute_loss_from_log(y_pred, y_test):
+    """
+        From a set of predictions, find the loss and transforms the area back to the original scale in hectareas
+    """
+    return sum(abs(np.exp(y_pred) - np.exp(y_test)))/len(y_pred)
+
 def average_squared_loss(y_pred, y_test):
     return (sum(((y_pred) - (y_test))**2))/len(y_pred)
 
@@ -173,7 +179,7 @@ def area_burnt(X_test_with_area, y_pred, y_test):
         [y_test: the actual values]
     """
     false_negatives = (y_pred == 0) & (y_test == 1)
-    return sum(np.exp(X_test_with_area.loc[false_negatives]["area"]))
+    return sum(np.exp(X_test_with_area.loc[false_negatives]["area"]) - 1)
 
 def select_c_kcross(X, X_with_area, y,  splits=10, repeats=5, gamma = 1.6768329368110066e-05, kernel = "rbf"):
     """
@@ -487,7 +493,7 @@ def gbr_score_2(X, y, degree, learning_rate, n_estimators):
         model = GradientBoostingRegressor(learning_rate = learning_rate, n_estimators = n_estimators)
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        losses.append(average_absolute_loss(y_pred, y_test))
+        losses.append(average_absolute_loss_from_log(y_pred, y_test))
     return sum(losses)/n
 
 def hyper_opt_rfr(X, y):
@@ -524,7 +530,7 @@ def rfr_score(X, y, degree, crit, n_estimators):
         model = RandomForestRegressor(criterion=crit, n_estimators = n_estimators)
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        losses.append(average_absolute_loss(y_pred, y_test))
+        losses.append(average_absolute_loss_from_log(y_pred, y_test))
     return sum(losses)/n
 
 def greedy_addition(X, y, features, lr = 0.05, n_estimators = 100):
@@ -549,7 +555,7 @@ def greedy_addition(X, y, features, lr = 0.05, n_estimators = 100):
         y_train, y_test = y[train_index], y[test_index]
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        total_loss += average_absolute_loss(y_pred, y_test)
+        total_loss += average_absolute_loss_from_log(y_pred, y_test)
     losses[new_features] = total_loss/n
     X_new = X.copy()
     for feature in features:
@@ -563,7 +569,7 @@ def greedy_addition(X, y, features, lr = 0.05, n_estimators = 100):
             y_train, y_test = y[train_index], y[test_index]
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-            total_loss += average_absolute_loss(y_pred, y_test)
+            total_loss += average_absolute_loss_from_log(y_pred, y_test)
         losses[new_features] = total_loss/n
     return losses
 
@@ -589,9 +595,9 @@ def greedy_feature_removal_kfold(X, y, lr = 0.05, n_estimators = 100):
             n+=1
             X_train, X_test = X.loc[:,features].iloc[train_index], X.loc[:,features].iloc[test_index]
             y_train, y_test = y[train_index], y[test_index]
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
-            total_loss += average_absolute_loss(y_pred, y_test)
+            gbr.fit(X_train, y_train)
+            y_pred = gbr.predict(X_test)
+            total_loss += average_absolute_loss_from_log(y_pred, y_test)
         average_losses[i] = total_loss/n
             
     return removed_features, average_losses
@@ -638,7 +644,7 @@ def nested_crossval_model(X, y, model, search_space, n_splits=5, seed=3558):
                 model.set_params(**params)
                 model.fit(X_train, y_train)
                 y_pred = model.predict(X_test)
-                return mean_squared_error(y_pred, y_test)
+                return average_squared_loss_from_log(y_pred, y_test)
             res_gp = gbrt_minimize(evaluate_model, search_space, n_calls=50, random_state=0)
             inner_evaluations[j] = {}
             inner_evaluations[j]["obj"] = res_gp.fun
@@ -652,7 +658,7 @@ def nested_crossval_model(X, y, model, search_space, n_splits=5, seed=3558):
         model.set_params(**inner_evaluations[min_ix]["params"])
         model.fit(X_outer, y_outer)
         y_pred = model.predict(X_eval)
-        error = mean_absolute_error(y_pred, y_eval)
+        error = average_absolute_loss_from_log(y_pred, y_eval)
         outer_evaluations[i] = {}
         outer_evaluations[i]["obj"] = error
         outer_evaluations[i]["params"] = inner_evaluations[min_ix]["params"]
@@ -669,3 +675,16 @@ def nested_crossval_model(X, y, model, search_space, n_splits=5, seed=3558):
     model.set_params(**outer_evaluations[min_ix]["params"])
     model.fit(X, y)
     return cum_cost/n_outer, model
+
+def rec_curve(y_pred, y_obs,axes, logx=False, rm_highest=0):
+    """Returns the error characteristic curve, analog of the roc curve for regression"""
+    total = len(y_pred)
+    absolute_residuals = abs(y_pred - y_obs)
+    absolute_residuals = np.sort(absolute_residuals)[::-1]
+    absolute_residuals = absolute_residuals[rm_highest:]
+    b = np.linspace(0, max(absolute_residuals), 100)
+    counts = []
+    for i in b:
+        counts.append(np.sum(absolute_residuals<=i)/total)
+    curve_series = pd.Series(counts, index=b)
+    return curve_series.plot(ax=axes,logx=logx)
