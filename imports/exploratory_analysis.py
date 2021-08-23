@@ -99,7 +99,7 @@ def plot_numerical_counts(fires):
     numerical = ['FFMC', 'DMC', 'DC', 'ISI', 'temp', 'RH','wind', 'rain', 'area']
     n = 3
     m = 3
-    fig,axs = plt.subplots(n, m, figsize = (20, 20))
+    fig,axs = plt.subplots(n, m, figsize = (15, 10))
     x = 0
     for i in np.arange(0, n):
         for j in np.arange(0, m):
@@ -108,7 +108,7 @@ def plot_numerical_counts(fires):
                 x+=1
             else:
                 axs[i][j].axis('off')
-    fig.suptitle('Counts of fires over the different values of the numerical variables', fontsize=30)
+    fig.suptitle('Counts of fires over the different values of the numerical variables', fontsize=20)
     plt.show()
     
 def plot_nonzero_area(fires, ax=None):
